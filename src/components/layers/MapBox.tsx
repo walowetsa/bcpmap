@@ -65,13 +65,16 @@ const MapBox: React.FC<MapboxMapProps> = ({
   const [agentData, setAgentData] = useState<AgentData[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   
-  // arewa selection
+  // area selection
   const [isDrawing, setIsDrawing] = useState(false);
   const [polygonCoordinates, setPolygonCoordinates] = useState<number[][]>([]);
   const [completedPolygon, setCompletedPolygon] = useState<number[][] | null>(null);
   const drawingHandlersRef = useRef<any>({});
   const onAreaSelectedRef = useRef(onAreaSelected);
   const agentDataRef = useRef<AgentData[]>([]);
+  
+  // Track event listeners to prevent duplicates
+  const eventListenersAddedRef = useRef(false);
 
   useEffect(() => {
     onAreaSelectedRef.current = onAreaSelected;
@@ -298,6 +301,28 @@ const MapBox: React.FC<MapboxMapProps> = ({
     });
   };
 
+  // Layer cleanup function
+  const removeAgentLayers = () => {
+    if (!map.current) return;
+
+    const layersToRemove = ['clusters', 'cluster-count', 'unclustered-point'];
+    const sourcesToRemove = ['agents'];
+
+    layersToRemove.forEach(layerId => {
+      if (map.current?.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+    });
+
+    sourcesToRemove.forEach(sourceId => {
+      if (map.current?.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+    });
+
+    eventListenersAddedRef.current = false;
+  };
+
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
@@ -410,6 +435,9 @@ const MapBox: React.FC<MapboxMapProps> = ({
     if (!mapLoaded || !map.current) return;
 
     if (showAgentMarkers) {
+      if (dataLoaded && agentData.length > 0) {
+        addAgentMarkers();
+      }
       toggleLayerVisibility('clusters', true);
       toggleLayerVisibility('cluster-count', true);
       toggleLayerVisibility('unclustered-point', true);
@@ -420,11 +448,14 @@ const MapBox: React.FC<MapboxMapProps> = ({
     }
 
     if (showHeatmap) {
+      if (dataLoaded && agentData.length > 0) {
+        addHeatmapLayer();
+      }
       toggleLayerVisibility('agents-heatmap-layer', true);
     } else {
       toggleLayerVisibility('agents-heatmap-layer', false);
     }
-  }, [mapLoaded, showAgentMarkers, showHeatmap]);
+  }, [mapLoaded, showAgentMarkers, showHeatmap, dataLoaded]);
 
   const createGeoJSONData = (agents: AgentData[]) => {
     return {
@@ -562,8 +593,7 @@ const MapBox: React.FC<MapboxMapProps> = ({
       });
     }
 
-    if (enableClustering && !map.current.getLayer('clusters')) {
-
+    if (enableClustering && !map.current.getLayer('cluster-count')) {
       map.current.addLayer({
         id: 'cluster-count',
         type: 'symbol',
@@ -609,73 +639,81 @@ const MapBox: React.FC<MapboxMapProps> = ({
       });
     }
 
-    if (enableClustering) {
-      map.current.on('click', 'clusters', (e) => {
-        if (isAreaSelectActive) return;
-        
-        const features = map.current!.queryRenderedFeatures(e.point, {
-          layers: ['clusters']
+    // Add event handlers only once
+    if (!eventListenersAddedRef.current) {
+      if (enableClustering) {
+        map.current.on('click', 'clusters', (e) => {
+          if (isAreaSelectActive) return;
+          
+          const features = map.current!.queryRenderedFeatures(e.point, {
+            layers: ['clusters']
+          });
+
+          const clusterId = features[0].properties!.cluster_id;
+          (map.current!.getSource('agents') as mapboxgl.GeoJSONSource).getClusterExpansionZoom(
+            clusterId,
+            (err, zoom) => {
+              if (err) return;
+
+              map.current!.easeTo({
+                center: (features[0].geometry as any).coordinates,
+                zoom: zoom ?? undefined
+              });
+            }
+          );
         });
 
-        const clusterId = features[0].properties!.cluster_id;
-        (map.current!.getSource('agents') as mapboxgl.GeoJSONSource).getClusterExpansionZoom(
-          clusterId,
-          (err, zoom) => {
-            if (err) return;
-
-            map.current!.easeTo({
-              center: (features[0].geometry as any).coordinates,
-              zoom: zoom ?? undefined
-            });
+        map.current.on('mouseenter', 'clusters', () => {
+          if (!isAreaSelectActive) {
+            map.current!.getCanvas().style.cursor = 'pointer';
           }
-        );
+        });
+        
+        map.current.on('mouseleave', 'clusters', () => {
+          if (!isAreaSelectActive) {
+            map.current!.getCanvas().style.cursor = '';
+          }
+        });
+      }
+
+      map.current.on('click', 'unclustered-point', (e) => {
+        if (isAreaSelectActive) return; 
+        
+        const coordinates = (e.features![0].geometry as any).coordinates.slice();
+        const properties = e.features![0].properties!;
+
+        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+          coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+        }
+
+        new mapboxgl.Popup()
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div class="p-3">
+              <h3 class="font-bold text-lg">${properties.empName}</h3>
+              <p class="text-sm text-gray-600">${properties.role}</p>
+              <p class="text-sm text-gray-600">${properties.division}</p>
+              <p class="text-sm mt-2"><strong>Location:</strong> ${properties.personalAddress}</p>
+              <p class="text-xs text-gray-500 mt-1">ID: ${properties.tsaId}</p>
+            </div>
+          `)
+          .addTo(map.current!);
       });
-    }
 
-    map.current.on('click', 'unclustered-point', (e) => {
-      if (isAreaSelectActive) return; 
+      map.current.on('mouseenter', 'unclustered-point', () => {
+        if (!isAreaSelectActive) {
+          map.current!.getCanvas().style.cursor = 'pointer';
+        }
+      });
       
-      const coordinates = (e.features![0].geometry as any).coordinates.slice();
-      const properties = e.features![0].properties!;
+      map.current.on('mouseleave', 'unclustered-point', () => {
+        if (!isAreaSelectActive) {
+          map.current!.getCanvas().style.cursor = '';
+        }
+      });
 
-      while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-        coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-      }
-
-      new mapboxgl.Popup()
-        .setLngLat(coordinates)
-        .setHTML(`
-          <div class="p-3">
-            <h3 class="font-bold text-lg">${properties.empName}</h3>
-            <p class="text-sm text-gray-600">${properties.role}</p>
-            <p class="text-sm text-gray-600">${properties.division}</p>
-            <p class="text-sm mt-2"><strong>Location:</strong> ${properties.personalAddress}</p>
-            <p class="text-xs text-gray-500 mt-1">ID: ${properties.tsaId}</p>
-          </div>
-        `)
-        .addTo(map.current!);
-    });
-
-    map.current.on('mouseenter', 'clusters', () => {
-      if (!isAreaSelectActive) {
-        map.current!.getCanvas().style.cursor = 'pointer';
-      }
-    });
-    map.current.on('mouseleave', 'clusters', () => {
-      if (!isAreaSelectActive) {
-        map.current!.getCanvas().style.cursor = '';
-      }
-    });
-    map.current.on('mouseenter', 'unclustered-point', () => {
-      if (!isAreaSelectActive) {
-        map.current!.getCanvas().style.cursor = 'pointer';
-      }
-    });
-    map.current.on('mouseleave', 'unclustered-point', () => {
-      if (!isAreaSelectActive) {
-        map.current!.getCanvas().style.cursor = '';
-      }
-    });
+      eventListenersAddedRef.current = true;
+    }
 
     console.log(`Added ${filteredAgents.length} filtered agent markers to map`);
   };
@@ -733,6 +771,7 @@ const MapBox: React.FC<MapboxMapProps> = ({
     }
   }, [mapLoaded, dataLoaded, showAgentMarkers, showHeatmap]);
 
+  // update data when filters change
   useEffect(() => {
     if (mapLoaded && dataLoaded && agentData.length > 0) {
       updateDataSources();

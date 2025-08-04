@@ -1,4 +1,5 @@
-import { AlertTriangleIcon, CloudDrizzleIcon, ListFilterIcon, MapIcon, MapPinIcon, SearchIcon, VectorSquareIcon } from "lucide-react";
+// import { AlertTriangleIcon, CloudDrizzleIcon, ListFilterIcon, MapIcon, MapPinIcon, SearchIcon, VectorSquareIcon } from "lucide-react";
+import { ListFilterIcon, MapIcon, MapPinIcon, VectorSquareIcon } from "lucide-react";
 import { useState } from "react";
 
 interface MenuProps {
@@ -18,21 +19,21 @@ const Menu = ({
   isAreaSelectActive,
   isFiltersActive
 }: MenuProps) => {
-    const [isSearchActive, setIsSearchActive] = useState(false);
+    // const [isSearchActive, setIsSearchActive] = useState(false);
     const [isLocationPinsActive, setIsLocationPinsActive] = useState(true);
     const [isHeatmapActive, setIsHeatmapActive] = useState(true);
-    const [isWeatherActive, setIsWeatherActive] = useState(true);
-    const [isAlertsActive, setIsAlertsActive] = useState(true);
+    // const [isWeatherActive, setIsWeatherActive] = useState(true);
+    // const [isAlertsActive, setIsAlertsActive] = useState(true);
 
     const clickFilters = () => {
         handleFiltersToggle();
         console.log("filters clicked, isFiltersActive:", isFiltersActive);
     }
 
-    const clickSearch = () => {
-        setIsSearchActive(!isSearchActive)
-        console.log("search clicked");
-    }
+    // const clickSearch = () => {
+    //     setIsSearchActive(!isSearchActive)
+    //     console.log("search clicked");
+    // }
     
     const clickAreaSelect = () => {
         handleAreaSelectToggle();
@@ -47,14 +48,14 @@ const Menu = ({
         setIsHeatmapActive(!isHeatmapActive)
         handleHeatmapToggle();
     }
-    const clickWeather = () => {
-        setIsWeatherActive(!isWeatherActive)
-        console.log("weather clicked");
-    }
-    const clickAlerts = () => {
-        setIsAlertsActive(!isAlertsActive)
-        console.log("alerts clicked");
-    }
+    // const clickWeather = () => {
+    //     setIsWeatherActive(!isWeatherActive)
+    //     console.log("weather clicked");
+    // }
+    // const clickAlerts = () => {
+    //     setIsAlertsActive(!isAlertsActive)
+    //     console.log("alerts clicked");
+    // }
 
   const menuItems = [
     {
@@ -72,13 +73,13 @@ const Menu = ({
       action: clickAreaSelect,
       active: isAreaSelectActive
     },
-    {
-      idx: 1,
-      title: "Search",
-      icon: <SearchIcon />,
-      action: clickSearch,
-      active: isSearchActive
-    },
+    // {
+    //   idx: 1,
+    //   title: "Search",
+    //   icon: <SearchIcon />,
+    //   action: clickSearch,
+    //   active: isSearchActive
+    // },
     {
       idx: 4,
       title: "Show Location Pins",
@@ -93,20 +94,20 @@ const Menu = ({
       action: clickHeatmap,
       active: isHeatmapActive
     },
-    {
-      idx: 2,
-      title: "Show Weather Conditions",
-      icon: <CloudDrizzleIcon />,
-      action: clickWeather,
-      active: isWeatherActive
-    },
-    {
-      idx: 3,
-      title: "Show Emergency Alerts",
-      icon: <AlertTriangleIcon />,
-      action: clickAlerts,
-      active: isAlertsActive
-    },
+    // {
+    //   idx: 2,
+    //   title: "Show Weather Conditions",
+    //   icon: <CloudDrizzleIcon />,
+    //   action: clickWeather,
+    //   active: isWeatherActive
+    // },
+    // {
+    //   idx: 3,
+    //   title: "Show Emergency Alerts",
+    //   icon: <AlertTriangleIcon />,
+    //   action: clickAlerts,
+    //   active: isAlertsActive
+    // },
   ];
 
   return (
