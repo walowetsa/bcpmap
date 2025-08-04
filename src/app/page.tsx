@@ -104,7 +104,7 @@ export default function Home() {
         <Logo />
       </div>
       
-      {/* Filter Component */}
+      {/* Filter */}
       <Filter
         agentData={agentData}
         onFilterChange={handleFilterChange}
@@ -125,9 +125,9 @@ export default function Home() {
         showAgentMarkers={enableLocationPins}
         showHeatmap={enableHeatmap}
         markerColor="#3B82F6"
-        markerSize={6}
+        markerSize={4}
         enableClustering={true}
-        clusterRadius={50}
+        clusterRadius={15}
         clusterMaxZoom={14}
         heatmapIntensity={1.2}
         heatmapRadius={80}
